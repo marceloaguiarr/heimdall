@@ -28,10 +28,6 @@ import static br.com.twsoftware.alfred.object.Objeto.notBlank;
 
 import java.util.List;
 
-import br.com.conductor.heimdall.core.entity.Interceptor;
-import br.com.conductor.heimdall.core.entity.Operation;
-import br.com.conductor.heimdall.core.repository.InterceptorRepository;
-import br.com.conductor.heimdall.core.repository.OperationRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Example;
 import org.springframework.data.domain.ExampleMatcher;
@@ -69,12 +65,6 @@ public class ResourceService {
 
      @Autowired
      private ApiRepository apiRepository;
-
-     @Autowired
-     private OperationRepository operationRepository;
-
-     @Autowired
-     private InterceptorRepository interceptorRepository;
 
      @Autowired
      private OperationService operationService;
@@ -124,10 +114,8 @@ public class ResourceService {
           
           Pageable pageable = Pageable.setPageable(pageableDTO.getOffset(), pageableDTO.getLimit());
           Page<Resource> page = resourceRepository.findAll(example, pageable);
-          
-          ResourcePage resourcePage = new ResourcePage(PageDTO.build(page));
-          
-          return resourcePage;
+
+          return new ResourcePage(PageDTO.build(page));
      }
 
      /**
@@ -147,10 +135,8 @@ public class ResourceService {
           resource.setApi(api);
           
           Example<Resource> example = Example.of(resource, ExampleMatcher.matching().withIgnorePaths("api.creationDate").withIgnoreCase().withStringMatcher(StringMatcher.CONTAINING));
-          
-          List<Resource> resources = resourceRepository.findAll(example);
-          
-          return resources;
+
+          return resourceRepository.findAll(example);
      }
      
      /**
@@ -168,7 +154,7 @@ public class ResourceService {
           HeimdallException.checkThrow(isBlank(api), GLOBAL_RESOURCE_NOT_FOUND);
                     
           Resource resData = resourceRepository.findByApiIdAndName(apiId, resourceDTO.getName());
-          HeimdallException.checkThrow(notBlank(resData) && (resData.getApi().getId() == api.getId()), ONLY_ONE_RESOURCE_PER_API);
+          HeimdallException.checkThrow(notBlank(resData) && (resData.getApi().getId().equals(api.getId())), ONLY_ONE_RESOURCE_PER_API);
           
           Resource resource = GenericConverter.mapperWithMapping(resourceDTO, Resource.class, new ResourceMap());
           resource.setApi(api);
@@ -196,7 +182,7 @@ public class ResourceService {
           HeimdallException.checkThrow(isBlank(resource), GLOBAL_RESOURCE_NOT_FOUND);
           
           Resource resData = resourceRepository.findByApiIdAndName(apiId, resourceDTO.getName());
-          HeimdallException.checkThrow(notBlank(resData) && (resData.getApi().getId() == resource.getApi().getId()) && (resData.getId() != resource.getId()), ONLY_ONE_RESOURCE_PER_API);
+          HeimdallException.checkThrow(notBlank(resData) && (resData.getApi().getId().equals(resource.getApi().getId())) && (!resData.getId().equals(resource.getId())), ONLY_ONE_RESOURCE_PER_API);
           
           resource = GenericConverter.mapperWithMapping(resourceDTO, resource, new ResourceMap());
           
@@ -220,16 +206,25 @@ public class ResourceService {
           HeimdallException.checkThrow(isBlank(resource), GLOBAL_RESOURCE_NOT_FOUND);
 
           // Deletes all operations attached to the Resource
-          List<Operation> operations = operationRepository.findByResourceId(resourceId);
-          operations.forEach(operation -> operationService.delete(apiId, resourceId, operation.getId()));
+          operationService.deleteAllfromResource(apiId, resourceId);
 
           // Deletes all interceptors attached to the Resource
-          List<Interceptor> interceptors = interceptorRepository.findByResourceId(resourceId);
-          interceptors.forEach(interceptor -> interceptorService.delete(interceptor.getId()));
+          interceptorService.deleteAllfromResource(resourceId);
           
           resourceRepository.delete(resource.getId());
           
           amqpRoute.dispatchRoutes();
+     }
+
+     /**
+      * Deletes all Resources from a Api
+      *
+      * @param apiId Api with the Resources
+      */
+     public void deleteAllFromApi(Long apiId) {
+          List<Resource> resources = resourceRepository.findByApiId(apiId);
+
+          resources.forEach(resource -> this.delete(apiId, resource.getId()));
      }
 
 }

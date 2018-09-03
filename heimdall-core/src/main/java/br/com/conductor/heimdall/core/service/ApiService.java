@@ -69,12 +69,17 @@ public class ApiService {
      @Autowired
      private EnvironmentService environmentService;
 
+     @Autowired
+     private ResourceService resourceService;
+
+     @Autowired
+     private MiddlewareService middlewareService;
+
      /**
       * Finds a {@link Api} by its ID.
       *
       * @param 	id						The ID of the {@link Api}
       * @return							The {@link Api}
-      * @throws	NotFoundException		Resource not found
       */
      public Api find(Long id) {
 
@@ -100,16 +105,13 @@ public class ApiService {
           Pageable pageable = Pageable.setPageable(pageableDTO.getOffset(), pageableDTO.getLimit());
           Page<Api> page = apiRepository.findAll(example, pageable);
 
-          ApiPage apiPage = new ApiPage(PageDTO.build(page));
-
-          return apiPage;
+          return new ApiPage(PageDTO.build(page));
      }
 
      /**
       * Generates a list of the {@link Api}'s
       *
       * @param 	apiDTO					{@link ApiDTO}
-      * @param 	pageableDTO				The pageable DTO
       * @return 						The list of {@link Api}'s
       */
      public List<Api> list(ApiDTO apiDTO) {
@@ -118,9 +120,7 @@ public class ApiService {
 
           Example<Api> example = Example.of(api, ExampleMatcher.matching().withIgnoreCase().withStringMatcher(StringMatcher.CONTAINING));
 
-          List<Api> apis = apiRepository.findAll(example);
-
-          return apis;
+          return apiRepository.findAll(example);
      }
 
      /**
@@ -128,9 +128,6 @@ public class ApiService {
       *
       * @param 	apiDTO					{@link ApiDTO}
       * @return							The saved {@link Api}
-      * @throws	BadRequestException		The basepath defined exist
-      * @throws     BadRequestException      Api basepath can not contain wild card
-      * @throws     BadRequestException      Basepath can not be empty
       */
      public Api save(ApiDTO apiDTO) {
 
@@ -154,10 +151,6 @@ public class ApiService {
       * @param 	id						The ID of the {@link Api}
       * @param 	apiDTO					{@link ApiDTO}
       * @return							The updated {@link Api}
-      * @throws	NotFoundException		Resource not found
-      * @throws	BadRequestException		The basepath defined exist
-      * @throws     BadRequestException      Api basepath can not contain wild card
-      * @throws     BadRequestException      Basepath can not be empty
       */
      public Api update(Long id, ApiDTO apiDTO) {
 
@@ -182,12 +175,15 @@ public class ApiService {
       * Deletes a {@link Api} by its ID.
       *
       * @param 	id						The ID of the {@link Api}
-      * @throws	NotFoundException		Resource not found
       */
      public void delete(Long id) {
 
           Api api = apiRepository.findOne(id);
           HeimdallException.checkThrow(isBlank(api), GLOBAL_RESOURCE_NOT_FOUND);
+
+          resourceService.deleteAllFromApi(id);
+
+          middlewareService.deleteAll(id);
 
           apiRepository.delete(api);
           amqpRoute.dispatchRoutes();
@@ -198,8 +194,7 @@ public class ApiService {
      */
     private static boolean validateBasepath(ApiDTO apiDTO) {
         List<String> basepath = Arrays.asList(
-                apiDTO.getBasePath()
-                        .split("/")
+                apiDTO.getBasePath().split("/")
         );
 
         return basepath.contains("*") || basepath.contains("**");

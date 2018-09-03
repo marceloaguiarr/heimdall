@@ -134,9 +134,7 @@ public class MiddlewareService {
           Pageable pageable = Pageable.setPageable(pageableDTO.getOffset(), pageableDTO.getLimit());
           Page<Middleware> page = middlewareRepository.findAll(example, pageable);
 
-          MiddlewarePage middlewarePage = new MiddlewarePage(PageDTO.build(page));
-
-          return middlewarePage;
+         return new MiddlewarePage(PageDTO.build(page));
      }
 
      /**
@@ -160,9 +158,7 @@ public class MiddlewareService {
 
           Example<Middleware> example = Example.of(middleware, ExampleMatcher.matching().withIgnoreCase().withStringMatcher(StringMatcher.CONTAINING));
 
-          List<Middleware> middlewares = middlewareRepository.findAll(example);
-
-          return middlewares;
+         return middlewareRepository.findAll(example);
      }
 
      /**
@@ -189,7 +185,7 @@ public class MiddlewareService {
           HeimdallException.checkThrow(isBlank(api), GLOBAL_RESOURCE_NOT_FOUND);
 
           Middleware resData = middlewareRepository.findByApiIdAndVersion(apiId, middlewareDTO.getVersion());
-          HeimdallException.checkThrow(notBlank(resData) && (resData.getApi().getId() == api.getId()), ONLY_ONE_MIDDLEWARE_PER_VERSION_AND_API);
+          HeimdallException.checkThrow(notBlank(resData) && (resData.getApi().getId().equals(api.getId())), ONLY_ONE_MIDDLEWARE_PER_VERSION_AND_API);
 
           String type = FilenameUtils.getExtension(file.getOriginalFilename());
           HeimdallException.checkThrow(!("jar".equalsIgnoreCase(type)), MIDDLEWARE_UNSUPPORTED_TYPE);
@@ -233,7 +229,7 @@ public class MiddlewareService {
           HeimdallException.checkThrow(isBlank(middleware), GLOBAL_RESOURCE_NOT_FOUND);
 
           Middleware resData = middlewareRepository.findByApiIdAndVersion(apiId, middlewareDTO.getVersion());
-          HeimdallException.checkThrow(notBlank(resData) && (resData.getApi().getId() == middleware.getApi().getId()) && (resData.getId() != middleware.getId()), ONLY_ONE_MIDDLEWARE_PER_VERSION_AND_API);
+          HeimdallException.checkThrow(notBlank(resData) && (resData.getApi().getId().equals(middleware.getApi().getId())) && (!resData.getId().equals(middleware.getId())), ONLY_ONE_MIDDLEWARE_PER_VERSION_AND_API);
 
           middleware = GenericConverter.mapper(middlewareDTO, middleware);
 
@@ -267,6 +263,17 @@ public class MiddlewareService {
 
           amqpMiddlewareService.dispatchRemoveMiddlewares(middleware.getPath());
           middlewareRepository.delete(middleware.getId());
+
+     }
+
+    /**
+     * Deletes all Middlewares from a Api
+     *
+     * @param apiId Api with the Middlewares
+     */
+     public void deleteAll(Long apiId) {
+         List<Middleware> middlewares = middlewareRepository.findByApiId(apiId);
+         middlewares.forEach(middleware -> this.delete(apiId, middleware.getId()));
 
      }
 
