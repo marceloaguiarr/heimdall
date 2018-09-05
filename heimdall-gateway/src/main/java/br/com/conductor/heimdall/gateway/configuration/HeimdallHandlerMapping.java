@@ -59,6 +59,13 @@ public class HeimdallHandlerMapping extends ZuulHandlerMapping {
         return super.lookupHandler(urlPath, request);
      }
 
+    /**
+     * Performs the handler registration
+     */
+    public void initHandler() {
+         registerHandler("/**", this.zuul);
+     }
+
      public void setDirty(boolean dirty) {
 
           this.dirty = dirty;

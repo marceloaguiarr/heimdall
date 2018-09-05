@@ -30,6 +30,7 @@ import br.com.conductor.heimdall.core.repository.InterceptorRepository;
 import br.com.conductor.heimdall.core.repository.MiddlewareRepository;
 import br.com.conductor.heimdall.core.service.FileService;
 import br.com.conductor.heimdall.core.util.Constants;
+import br.com.conductor.heimdall.gateway.configuration.HeimdallHandlerMapping;
 import br.com.conductor.heimdall.gateway.service.InterceptorFileService;
 import br.com.conductor.heimdall.gateway.util.HeimdallFilterFileManager;
 import br.com.twsoftware.alfred.io.Arquivo;
@@ -79,6 +80,9 @@ public class StartServer implements ServletContextListener {
      @Autowired
      private MiddlewareRepository middlewareRepository;
 
+     @Autowired
+     private HeimdallHandlerMapping heimdallHandlerMapping;
+
      @Autowired 
      private FileService fileService;
      
@@ -94,6 +98,7 @@ public class StartServer implements ServletContextListener {
      public void contextInitialized(ServletContextEvent sce) {
 
           log.info("Initializing Groovy Interceptors");
+          heimdallHandlerMapping.initHandler();
           initGroovyFilterManager();
 
      }
